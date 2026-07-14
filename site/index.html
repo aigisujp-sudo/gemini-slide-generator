@@ -1,0 +1,588 @@
+<title>Gemini Slide Generator — Claude Codeスキル</title>
+<meta name="description" content="Gemini APIでスライド全体を1枚のデザインとして生成し、Google スライドへ自動組み立てするClaude Codeスキル。1コマンドでインストール。">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2216%22 fill=%22%2315120E%22/><rect x=%2222%22 y=%2230%22 width=%2256%22 height=%2240%22 rx=%224%22 fill=%22none%22 stroke=%22%23F0AA3C%22 stroke-width=%225%22/><circle cx=%2250%22 cy=%2250%22 r=%228%22 fill=%22%23F0AA3C%22/></svg>">
+
+<style>
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("fonts/jbm-regular.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("fonts/jbm-bold.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url("fonts/jbm-italic.woff2") format("woff2");
+  }
+
+  :root {
+    --bg: #F3F5F6;
+    --bg-alt: #E4E8EA;
+    --panel: #FCFDFD;
+    --ink: #12202A;
+    --ink-soft: #55666F;
+    --ink-faint: #8B99A0;
+    --accent: #C97A1E;
+    --accent-ink: #FFFFFF;
+    --accent-2: #1E7A78;
+    --border: rgba(18, 32, 42, 0.14);
+    --border-soft: rgba(18, 32, 42, 0.08);
+    --shadow: 0 1px 2px rgba(18, 32, 42, 0.06), 0 12px 32px -16px rgba(18, 32, 42, 0.22);
+
+    --serif-jp: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+    --sans-jp: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15120E;
+      --bg-alt: #201A13;
+      --panel: #1B160F;
+      --ink: #F2ECDD;
+      --ink-soft: #B7AC97;
+      --ink-faint: #7D7362;
+      --accent: #F0AA3C;
+      --accent-ink: #1A1305;
+      --accent-2: #4FA6A4;
+      --border: rgba(242, 236, 221, 0.16);
+      --border-soft: rgba(242, 236, 221, 0.08);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 20px 48px -20px rgba(0, 0, 0, 0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15120E;
+    --bg-alt: #201A13;
+    --panel: #1B160F;
+    --ink: #F2ECDD;
+    --ink-soft: #B7AC97;
+    --ink-faint: #7D7362;
+    --accent: #F0AA3C;
+    --accent-ink: #1A1305;
+    --accent-2: #4FA6A4;
+    --border: rgba(242, 236, 221, 0.16);
+    --border-soft: rgba(242, 236, 221, 0.08);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 20px 48px -20px rgba(0, 0, 0, 0.6);
+  }
+  :root[data-theme="light"] {
+    --bg: #F3F5F6;
+    --bg-alt: #E4E8EA;
+    --panel: #FCFDFD;
+    --ink: #12202A;
+    --ink-soft: #55666F;
+    --ink-faint: #8B99A0;
+    --accent: #C97A1E;
+    --accent-ink: #FFFFFF;
+    --accent-2: #1E7A78;
+    --border: rgba(18, 32, 42, 0.14);
+    --border-soft: rgba(18, 32, 42, 0.08);
+    --shadow: 0 1px 2px rgba(18, 32, 42, 0.06), 0 12px 32px -16px rgba(18, 32, 42, 0.22);
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans-jp);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  a { color: var(--accent); }
+
+  .wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---- sprocket / filmstrip motif ---- */
+  .sprockets {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 18px;
+  }
+  .sprockets span {
+    width: 10px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 1px;
+  }
+
+  /* ---- header ---- */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+  }
+  .wordmark {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .wordmark .dot { color: var(--accent); }
+  .nav-links { display: flex; gap: 24px; align-items: center; }
+  .nav-links a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .nav-links a:hover { color: var(--ink); }
+  .gh-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .gh-link:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ---- hero ---- */
+  .hero {
+    position: relative;
+    padding: 96px 0 72px;
+    overflow: hidden;
+  }
+  .beam {
+    position: absolute;
+    inset: -20% -10% auto -10%;
+    height: 480px;
+    background: radial-gradient(60% 60% at 30% 20%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%);
+    pointer-events: none;
+    filter: blur(10px);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    letter-spacing: 0.14em;
+    color: var(--accent-2);
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 22px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 18px; height: 1px;
+    background: var(--accent-2);
+  }
+  h1 {
+    font-family: var(--serif-jp);
+    font-weight: 600;
+    font-size: clamp(32px, 5.4vw, 54px);
+    line-height: 1.38;
+    letter-spacing: 0.01em;
+    margin: 0 0 26px;
+    text-wrap: balance;
+    max-width: 15ch;
+  }
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .hero-sub {
+    font-size: clamp(15.5px, 2vw, 17.5px);
+    color: var(--ink-soft);
+    max-width: 46ch;
+    margin: 0 0 40px;
+  }
+
+  /* ---- install card (slide frame) ---- */
+  .slide-frame {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    max-width: 640px;
+    overflow: hidden;
+  }
+  .slide-frame .sprockets { padding: 10px 18px; }
+  .slide-frame .sprockets.bottom { padding: 10px 18px; }
+  .install-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 20px 20px;
+  }
+  .install-cmd {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    color: var(--ink);
+    background: var(--bg-alt);
+    border: 1px solid var(--border-soft);
+    border-radius: 7px;
+    padding: 13px 14px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .install-cmd .muted { color: var(--ink-faint); }
+  .install-cmd .accent { color: var(--accent-2); }
+  .copy-btn {
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 7px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .copy-btn:hover { opacity: 0.9; }
+  .copy-btn:active { transform: scale(0.97); }
+  .hero-note {
+    margin-top: 16px;
+    font-size: 13.5px;
+    color: var(--ink-faint);
+    max-width: 560px;
+  }
+
+  /* ---- sections ---- */
+  section { padding: 64px 0; }
+  .section-head { margin-bottom: 40px; max-width: 52ch; }
+  .section-eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    margin: 0 0 10px;
+  }
+  h2 {
+    font-family: var(--serif-jp);
+    font-weight: 600;
+    font-size: clamp(22px, 3vw, 28px);
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  /* ---- filmstrip feature cards ---- */
+  .filmstrip {
+    display: flex;
+    gap: 18px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin: 0 -4px;
+  }
+  .frame-card {
+    flex: 0 0 250px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+  .frame-card:nth-child(odd) { transform: rotate(-0.6deg); }
+  .frame-card:nth-child(even) { transform: rotate(0.5deg); }
+  .frame-card:hover { transform: rotate(0deg) translateY(-2px); border-color: var(--accent); }
+  .frame-card .sprockets { padding: 9px 14px; }
+  .frame-body { padding: 6px 20px 22px; }
+  .frame-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .frame-title {
+    font-family: var(--sans-jp);
+    font-weight: 700;
+    font-size: 15.5px;
+    margin: 8px 0 8px;
+    line-height: 1.5;
+  }
+  .frame-desc {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  /* ---- steps ---- */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .step {
+    border-left: 2px solid var(--border);
+    padding-left: 18px;
+  }
+  .step-num {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--accent-2);
+  }
+  .step h3 {
+    font-family: var(--sans-jp);
+    font-size: 15.5px;
+    margin: 8px 0 8px;
+  }
+  .step p {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+  .step code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: var(--bg-alt);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* ---- prereq callout ---- */
+  .callout {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 26px 28px;
+    box-shadow: var(--shadow);
+  }
+  .callout ul {
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+  }
+  .callout li {
+    display: flex;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+  .callout li::before {
+    content: "";
+    flex-shrink: 0;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: 7px;
+  }
+  .callout code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--ink);
+    background: var(--bg-alt);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .callout a { color: var(--accent-2); }
+
+  /* ---- footer ---- */
+  footer {
+    border-top: 1px solid var(--border-soft);
+    padding: 32px 0 48px;
+  }
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .footer-row p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-faint);
+  }
+  .footer-links { display: flex; gap: 20px; }
+  .footer-links a {
+    font-size: 13px;
+    color: var(--ink-soft);
+    text-decoration: none;
+  }
+  .footer-links a:hover { color: var(--accent); }
+
+  @media (max-width: 720px) {
+    .steps { grid-template-columns: 1fr; }
+    .install-row { flex-direction: column; align-items: stretch; }
+    .nav-links { gap: 14px; }
+  }
+</style>
+
+<header>
+  <div class="wrap nav">
+    <a href="#" class="wordmark">◧ Gemini<span class="dot">·</span>Slide<span class="dot">·</span>Generator</a>
+    <div class="nav-links">
+      <a href="#what">できること</a>
+      <a href="#how">使い方</a>
+      <a href="#requirements">必要なもの</a>
+      <a class="gh-link" href="https://github.com/aigisujp-sudo/gemini-slide-generator" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="beam" aria-hidden="true"></div>
+    <div class="wrap">
+      <p class="eyebrow">Claude Code Skill</p>
+      <h1>スライド全体を、<br>AIに<em>1枚絵</em>としてデザインさせる。</h1>
+      <p class="hero-sub">
+        テーマや参考資料を渡すだけで、構成づくりからフルHDのスライドデザイン、
+        Google スライドへの組み立てまでを自動化する Claude Code スキル。
+      </p>
+
+      <div class="slide-frame">
+        <div class="sprockets" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="install-row">
+          <div class="install-cmd" id="install-cmd"><span class="accent">curl</span> -fsSL https://gemini-slide-generator.netlify.app/install.sh <span class="muted">|</span> bash</div>
+          <button class="copy-btn" id="copy-btn" type="button">COPY</button>
+        </div>
+        <div class="sprockets bottom" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <p class="hero-note">
+        <code style="font-family:var(--mono)">~/.claude/skills/gemini-slide-generator</code> にインストールされます。
+        利用には Gemini API キーと Google Slides / Drive の OAuth 設定が別途必要です(下記参照)。
+      </p>
+    </div>
+  </section>
+
+  <section id="what">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="section-eyebrow">What it does</p>
+        <h2>できること</h2>
+      </div>
+      <div class="filmstrip">
+        <article class="frame-card">
+          <div class="sprockets" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="frame-body">
+            <p class="frame-num">01</p>
+            <h3 class="frame-title">構成をAIが自動設計</h3>
+            <p class="frame-desc">テーマや参考資料(文章・PDF・Markdown)を渡すだけで、章立て・箇条書き・発表者ノートまで構成案を生成。</p>
+          </div>
+        </article>
+        <article class="frame-card">
+          <div class="sprockets" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="frame-body">
+            <p class="frame-num">02</p>
+            <h3 class="frame-title">スライド全面を1枚のデザインとして生成</h3>
+            <p class="frame-desc">背景・レイアウト・文字を別々に組むのではなく、Geminiが完成デザインとして直接描く。</p>
+          </div>
+        </article>
+        <article class="frame-card">
+          <div class="sprockets" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="frame-body">
+            <p class="frame-num">03</p>
+            <h3 class="frame-title">日本語タイトルも正確に描画</h3>
+            <p class="frame-desc">gemini-3-pro-image-preview を採用し、日本語の文字崩れを解消。長い見出しでも破綻しない。</p>
+          </div>
+        </article>
+        <article class="frame-card">
+          <div class="sprockets" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="frame-body">
+            <p class="frame-num">04</p>
+            <h3 class="frame-title">Google スライドへ自動組み立て</h3>
+            <p class="frame-desc">生成画像をDrive経由でスライドに全面配置し、実行後すぐに編集用URLを発行する。</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="section-eyebrow">How to use</p>
+        <h2>使い方</h2>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <p class="step-num">01</p>
+          <h3>インストール</h3>
+          <p>上のコマンドを実行するだけ。<code>~/.claude/skills/</code> にスキルが追加される。</p>
+        </div>
+        <div class="step">
+          <p class="step-num">02</p>
+          <h3>Claude Codeで依頼</h3>
+          <p>「〇〇についてスライド作って」と伝えるだけ。構成案を確認しながら進む。</p>
+        </div>
+        <div class="step">
+          <p class="step-num">03</p>
+          <h3>URLを受け取る</h3>
+          <p>生成が終わると、そのまま開けるGoogle スライドの編集用URLが届く。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="requirements">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="section-eyebrow">Requirements</p>
+        <h2>必要なもの</h2>
+      </div>
+      <div class="callout">
+        <p style="margin:0; font-size:14px; color:var(--ink-soft);">利用開始前に、以下2つを用意してください。</p>
+        <ul>
+          <li><code>GEMINI_API_KEY</code> — Google AI Studio で取得したAPIキー。<code>.env</code> などで管理。</li>
+          <li>Google Cloud の OAuth クライアント(Slides / Drive 書き込み権限)。初回のみブラウザでの認可が必要。手順は <a href="https://github.com/aigisujp-sudo/gemini-slide-generator/blob/main/skill/references/google_setup.md" target="_blank" rel="noopener">references/google_setup.md</a> を参照。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap footer-row">
+    <p>gemini-slide-generator — Claude Code 用スキル</p>
+    <div class="footer-links">
+      <a href="https://github.com/aigisujp-sudo/gemini-slide-generator" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/aigisujp-sudo/gemini-slide-generator/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  var btn = document.getElementById("copy-btn");
+  var cmdEl = document.getElementById("install-cmd");
+  btn.addEventListener("click", function () {
+    var text = cmdEl.textContent.replace(/\s+/g, " ").trim();
+    navigator.clipboard.writeText(text).then(function () {
+      var original = btn.textContent;
+      btn.textContent = "COPIED";
+      setTimeout(function () { btn.textContent = original; }, 1600);
+    });
+  });
+</script>
